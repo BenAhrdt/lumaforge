@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LumaForge LF logo">
+  <defs>
+    <linearGradient id="surface" x1="8" y1="6" x2="57" y2="59" gradientUnits="userSpaceOnUse"><stop stop-color="#20d5f4"/><stop offset=".52" stop-color="#35a9f4"/><stop offset="1" stop-color="#7566ff"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity=".28"/></filter>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="15" fill="url(#surface)" filter="url(#shadow)"/>
+  <path d="M17 16v31h17v-7H25V16h-8Zm20 0v31h8V35h9v-7h-9v-5h11v-7H37Z" fill="#07151d"/>
+  <circle cx="17" cy="52" r="2" fill="#d9fbff"/><circle cx="24" cy="52" r="2" fill="#d9fbff" fill-opacity=".72"/><circle cx="31" cy="52" r="2" fill="#d9fbff" fill-opacity=".42"/>
+</svg>

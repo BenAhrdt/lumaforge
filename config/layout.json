@@ -1,0 +1,58 @@
+{
+  "strips": [
+    {
+      "id": "section-1786620057163",
+      "name": "LED Section 1",
+      "type": "led",
+      "x1": 72,
+      "y1": 432,
+      "x2": 72.00000000000021,
+      "y2": -2496.0000000000005,
+      "ledCount": 122,
+      "startIndex": 0,
+      "reversed": false,
+      "spacingCm": 1.65,
+      "physicalLengthCm": 201.3,
+      "sizing": "length",
+      "output": "Garagentor",
+      "gpio": 4,
+      "order": 0
+    },
+    {
+      "id": "section-1786620095915",
+      "name": "LED Section 2",
+      "type": "led",
+      "x1": 72.00000000000021,
+      "y1": -2496.0000000000005,
+      "x2": 3432.0000000000005,
+      "y2": -2496.0000000000005,
+      "ledCount": 140,
+      "startIndex": 122,
+      "reversed": false,
+      "spacingCm": 1.65,
+      "physicalLengthCm": 231,
+      "sizing": "length",
+      "output": "Garagentor",
+      "gpio": 4,
+      "order": 1
+    },
+    {
+      "id": "section-1786620104869",
+      "name": "LED Section 3",
+      "type": "led",
+      "x1": 3432.0000000000005,
+      "y1": -2496.0000000000005,
+      "x2": 3432.0000000000005,
+      "y2": 432,
+      "ledCount": 122,
+      "startIndex": 262,
+      "reversed": false,
+      "spacingCm": 1.65,
+      "physicalLengthCm": 201.3,
+      "sizing": "length",
+      "output": "Garagentor",
+      "gpio": 4,
+      "order": 2
+    }
+  ]
+}

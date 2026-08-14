@@ -1,0 +1,9 @@
+.rainbow-preview {
+  display: block;
+  width: 100%;
+  height: 35px;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ff304f, #ffb300, #54df40, #20c8f4, #465cff, #c83bda, #ff304f);
+}

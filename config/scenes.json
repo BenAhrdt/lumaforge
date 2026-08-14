@@ -1,0 +1,58 @@
+[
+  {
+    "id": "scene-1786620578280",
+    "name": "Neue Szene",
+    "animations": [
+      {
+        "id": "animation-1786620618633-0",
+        "name": "Animation 1",
+        "zoneId": "zone-1786620444625",
+        "effect": "scanner",
+        "direction": "pingpong",
+        "color": "#00aeef",
+        "brightness": 0.8,
+        "speed": 0.5,
+        "start": 0,
+        "duration": 5,
+        "priority": 0,
+        "width": 0.15,
+        "loop": true,
+        "colorMode": "solid"
+      },
+      {
+        "id": "animation-1786620618633-1",
+        "name": "Animation 2",
+        "zoneId": "zone-1786620571211",
+        "effect": "scanner",
+        "direction": "center-out-and-back",
+        "color": "#00aeef",
+        "brightness": 0.8,
+        "speed": 0.5,
+        "start": 0,
+        "duration": 5,
+        "priority": 1,
+        "width": 0.15,
+        "loop": true,
+        "colorMode": "solid"
+      },
+      {
+        "id": "animation-1786620618633-2",
+        "name": "Animation 3",
+        "zoneId": "zone-1786620460227",
+        "effect": "scanner",
+        "direction": "pingpong-reverse",
+        "color": "#00aeef",
+        "brightness": 0.8,
+        "speed": 0.5,
+        "start": 0,
+        "duration": 5,
+        "priority": 2,
+        "width": 0.15,
+        "loop": true,
+        "colorMode": "solid"
+      }
+    ],
+    "duration": 5,
+    "loop": false
+  }
+]
