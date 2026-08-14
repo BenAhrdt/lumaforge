@@ -1,0 +1,14 @@
+{
+  "name": "lumaforge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Visual LED Mapping & Animation Firmware simulator",
+  "scripts": {
+    "build": "make all",
+    "test": "make test && node --test server/*.test.js",
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": { "ws": "^8.18.3" },
+  "engines": { "node": ">=20" }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "LumaForge Simulator",
+  "ledType": "WS2812B",
+  "ledCount": 300,
+  "gpio": 4,
+  "channels": "RGB",
+  "colorOrder": "RGB",
+  "maxBrightness": 1,
+  "maxCurrentMa": 3000,
+  "supplyVoltage": 5,
+  "outputs": [{ "id": "main", "gpio": 4 }]
+}

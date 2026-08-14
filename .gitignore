@@ -1,0 +1,5 @@
+build/
+node_modules/
+config/*.tmp
+.DS_Store
+firmware/.pio/
