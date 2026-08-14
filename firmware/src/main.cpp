@@ -19,7 +19,7 @@ namespace {
 constexpr uint32_t kConnectTimeoutMs = 15000;
 constexpr uint32_t kReconnectIntervalMs = 30000;
 constexpr char kApPassword[] = "lumaforge";
-constexpr char kFirmwareVersion[] = "0.1.4-dev";
+constexpr char kFirmwareVersion[] = "0.1.0-alpha.1";
 
 Preferences preferences;
 WebServer server(80);
