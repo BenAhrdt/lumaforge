@@ -423,6 +423,23 @@ void registerRoutes() {
       "\",\"model\":\"LumaForge ESP32\",\"firmwareVersion\":\"" + String(kFirmwareVersion) + "\",\"apiVersion\":\"" + String(kApiVersion) + "\",\"hostname\":\"" +
       jsonEscape(hostname) + ".local\",\"status\":\"" + status + "\"}");
   });
+  server.on("/api/v1/device", HTTP_PUT, [] {
+    JsonDocument request;
+    if (!server.hasArg("plain") || deserializeJson(request, server.arg("plain"))) {
+      server.send(422, "application/json", "{\"error\":\"invalid_json\"}");
+      return;
+    }
+    String name = request["device_name"] | "";
+    name.trim();
+    if (!name.length() || name.length() > 40) {
+      server.send(422, "application/json", "{\"error\":\"invalid_device_name\"}");
+      return;
+    }
+    deviceName = name;
+    preferences.putString("name", deviceName);
+    if (WiFi.status() == WL_CONNECTED) startMdns();
+    server.send(200, "application/json", "{\"device_id\":\"" + jsonEscape(deviceId) + "\",\"device_name\":\"" + jsonEscape(deviceName) + "\"}");
+  });
   server.on("/api/v1/info", HTTP_GET, [] {
     const bool online = WiFi.status() == WL_CONNECTED;
     JsonDocument info;

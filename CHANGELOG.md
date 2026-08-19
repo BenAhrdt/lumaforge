@@ -13,6 +13,9 @@ Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/).
 - mDNS-TXT-Metadaten für ID, Gerätename, API, Firmware, Modell, Hersteller, Produkt und Protokoll.
 - Explizite, von der Firmware-Version unabhängige API-Versionierung.
 - Read-only-Endpunkt `GET /api/v1/info` mit Identität, Netzwerkstatus und realen Gerätefähigkeiten.
+- Anzeige der unveränderlichen Discovery-Geräte-ID in den Einstellungen.
+- Direkt editierbarer Gerätename mit persistenter Speicherung und sofortiger Aktualisierung der mDNS-Metadaten.
+- Einheitliche Geräteinfo- und Namens-API für ESP32-Firmware und Simulator.
 - Discovery-Grundlage für zukünftige Home-Assistant-Integrationen und ioBroker-Adapter.
 
 ## [0.1.0-alpha.1] – 2026-08-14

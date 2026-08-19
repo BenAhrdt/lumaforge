@@ -81,3 +81,7 @@ html[data-theme="light"] .led.lit {
   filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px currentColor);
 }
 .led.lit.selected { stroke: var(--cyan); stroke-width: 4; }
+.properties form > label { display:block; color:#9baab4; font-size:11px; margin:15px 0; }
+.device-id code { display:block; margin-top:6px; padding:9px 10px; border:1px solid var(--line); border-radius:6px; background:#0d1419; color:var(--cyan); font-size:12px; user-select:all; }
+.device-id small { display:block; margin-top:6px; color:var(--muted); line-height:1.4; }
+html[data-theme="light"] .device-id code { background:#f4f8fa; }
