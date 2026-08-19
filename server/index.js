@@ -29,7 +29,7 @@ async function load(){project={device:await storage.read('device',defaults.devic
 function json(res,status,data){const body=JSON.stringify(data);res.writeHead(status,{'content-type':'application/json','content-length':Buffer.byteLength(body)});res.end(body);}
 async function body(req){let data='';for await(const chunk of req){data+=chunk;if(data.length>1e6)throw new Error('request too large');}return JSON.parse(data||'{}');}
 const api = async(req,res,url)=>{
-  if(req.method==='GET'&&url.pathname==='/api/v1/status'){const now=process.hrtime.bigint(),usage=process.cpuUsage(previousCpuUsage),elapsed=Number(now-previousCpuAt)/1000;previousCpuUsage=process.cpuUsage();previousCpuAt=now;const memory=process.memoryUsage();return json(res,200,{version:'0.1.0-alpha.1',cpuPercent:Math.min(100,(usage.user+usage.system)/Math.max(1,elapsed)*100),memoryUsedBytes:memory.heapUsed,memoryTotalBytes:memory.heapTotal});}
+  if(req.method==='GET'&&url.pathname==='/api/v1/status'){const now=process.hrtime.bigint(),usage=process.cpuUsage(previousCpuUsage),elapsed=Number(now-previousCpuAt)/1000;previousCpuUsage=process.cpuUsage();previousCpuAt=now;const memory=process.memoryUsage();return json(res,200,{version:'0.2.0-alpha.1',cpuPercent:Math.min(100,(usage.user+usage.system)/Math.max(1,elapsed)*100),memoryUsedBytes:memory.heapUsed,memoryTotalBytes:memory.heapTotal});}
   if(req.method==='GET'&&url.pathname==='/api/config')return json(res,200,{...project.device,apiVersion:1});
   const routes={layout:'layout',zones:'zones',scenes:'scenes',automations:'automations'};const key=routes[url.pathname.split('/')[2]];
   if(key&&req.method==='GET')return json(res,200,project[key]);

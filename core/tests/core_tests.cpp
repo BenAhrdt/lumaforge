@@ -1,4 +1,5 @@
 #include "lumaforge/core.hpp"
+#include "lumaforge/device_identity.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
@@ -22,5 +23,10 @@ int main(){try{
   scannerScene.animations[0]=scanner;
   frame=scannerRenderer.render(scannerScene,0);expect(frame[0].r>0&&frame[2].g>0&&!(frame[0]==frame[2]),"scanner supports a spatial rainbow color mode");
   expect(Color::hex("#00AEEF")==Color{0,174,239,0},"serialization color");
-  std::cout<<"10 core tests passed\n";return EXIT_SUCCESS;
+  const auto identity=deviceIdFromHardwareMac(0xa84c92f103abULL);
+  expect(identity=="lf-51bf60200d1e","device identity SHA-256 vector");
+  expect(identity.size()==15&&identity.rfind("lf-",0)==0,"device identity format");
+  expect(deviceIdFromHardwareMac(0xa84c92f103abULL)==identity,"device identity deterministic");
+  expect(deviceIdFromHardwareMac(0xa84c92f103acULL)!=identity,"different hardware identity");
+  std::cout<<"14 core tests passed\n";return EXIT_SUCCESS;
 }catch(const std::exception&e){std::cerr<<"FAIL: "<<e.what()<<"\n";return EXIT_FAILURE;}}

@@ -14,12 +14,16 @@
 #include <memory>
 #include "generated_web.hpp"
 #include "lumaforge/core.hpp"
+#include "lumaforge/device_identity.hpp"
 
 namespace {
 constexpr uint32_t kConnectTimeoutMs = 15000;
 constexpr uint32_t kReconnectIntervalMs = 30000;
 constexpr char kApPassword[] = "lumaforge";
-constexpr char kFirmwareVersion[] = "0.1.0-alpha.1";
+constexpr char kProduct[] = "LumaForge";
+constexpr char kModel[] = "esp32";
+constexpr char kFirmwareVersion[] = "0.2.0-alpha.1";
+constexpr uint8_t kApiVersion = 1;
 
 Preferences preferences;
 WebServer server(80);
@@ -70,7 +74,7 @@ bool writeProjectFile(const char* key, const String& value) {
 String deviceJson() {
   return "{\"name\":\"" + jsonEscape(deviceName) + "\",\"ledType\":\"WS2812B\",\"ledCount\":0,\"gpio\":4,"
     "\"channels\":\"RGB\",\"colorOrder\":\"RGB\",\"maxBrightness\":1,\"maxCurrentMa\":3000,"
-    "\"supplyVoltage\":5,\"outputs\":[{\"id\":\"main\",\"gpio\":4}],\"apiVersion\":1}";
+    "\"supplyVoltage\":5,\"outputs\":[{\"id\":\"main\",\"gpio\":4}],\"apiVersion\":" + String(kApiVersion) + "}";
 }
 
 String projectJson() {
@@ -261,25 +265,6 @@ String jsonEscape(const String& value) {
   return result;
 }
 
-String sanitizeHostname(String value) {
-  value.toLowerCase();
-  String result;
-  bool previousDash = false;
-  for (const char character : value) {
-    const bool valid = isAlphaNumeric(static_cast<unsigned char>(character));
-    if (valid) {
-      result += character;
-      previousDash = false;
-    } else if (!previousDash && result.length()) {
-      result += '-';
-      previousDash = true;
-    }
-  }
-  while (result.endsWith("-")) result.remove(result.length() - 1);
-  if (!result.length()) result = "lumaforge-" + deviceId;
-  return result.substring(0, 63);
-}
-
 String htmlEscape(const String& value) {
   String result = value;
   result.replace("&", "&amp;");
@@ -332,8 +317,17 @@ void startMdns() {
   MDNS.end();
   if (MDNS.begin(hostname.c_str())) {
     MDNS.addService("http", "tcp", 80);
-    MDNS.addServiceTxt("http", "tcp", "product", "LumaForge");
+    MDNS.addServiceTxt("http", "tcp", "product", kProduct);
     MDNS.addServiceTxt("http", "tcp", "id", deviceId);
+    MDNS.addService("lumaforge", "tcp", 80);
+    MDNS.addServiceTxt("lumaforge", "tcp", "id", deviceId);
+    MDNS.addServiceTxt("lumaforge", "tcp", "name", deviceName);
+    MDNS.addServiceTxt("lumaforge", "tcp", "api", String(kApiVersion));
+    MDNS.addServiceTxt("lumaforge", "tcp", "fw", kFirmwareVersion);
+    MDNS.addServiceTxt("lumaforge", "tcp", "model", kModel);
+    MDNS.addServiceTxt("lumaforge", "tcp", "manufacturer", kProduct);
+    MDNS.addServiceTxt("lumaforge", "tcp", "product", kProduct);
+    MDNS.addServiceTxt("lumaforge", "tcp", "protocol", "http");
   }
 }
 
@@ -426,8 +420,29 @@ void registerRoutes() {
   server.on("/api/v1/device", HTTP_GET, [] {
     const String status = WiFi.status() == WL_CONNECTED ? "online" : accessPointActive ? "provisioning" : "connecting";
     server.send(200, "application/json", "{\"id\":\"" + jsonEscape(deviceId) + "\",\"name\":\"" + jsonEscape(deviceName) +
-      "\",\"model\":\"LumaForge ESP32\",\"firmwareVersion\":\"" + String(kFirmwareVersion) + "\",\"apiVersion\":\"1\",\"hostname\":\"" +
+      "\",\"model\":\"LumaForge ESP32\",\"firmwareVersion\":\"" + String(kFirmwareVersion) + "\",\"apiVersion\":\"" + String(kApiVersion) + "\",\"hostname\":\"" +
       jsonEscape(hostname) + ".local\",\"status\":\"" + status + "\"}");
+  });
+  server.on("/api/v1/info", HTTP_GET, [] {
+    const bool online = WiFi.status() == WL_CONNECTED;
+    JsonDocument info;
+    info["product"] = kProduct;
+    info["device_id"] = deviceId;
+    info["device_name"] = deviceName;
+    info["model"] = kModel;
+    info["firmware_version"] = kFirmwareVersion;
+    info["api_version"] = kApiVersion;
+    info["hostname"] = hostname;
+    info["network"]["connected"] = online;
+    info["network"]["ip"] = online ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
+    info["network"]["rssi"] = online ? WiFi.RSSI() : 0;
+    JsonArray capabilities = info["capabilities"].to<JsonArray>();
+    capabilities.add("led_output");
+    capabilities.add("scenes");
+    capabilities.add("zones");
+    String response;
+    serializeJson(info, response);
+    server.send(200, "application/json", response);
   });
   server.on("/api/v1/status", HTTP_GET, [] {
     const bool online = WiFi.status() == WL_CONNECTED;
@@ -484,7 +499,7 @@ void registerRoutes() {
 
 void onWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t length) {
   if (type == WStype_CONNECTED) {
-    webSocket.sendTXT(client, "{\"type\":\"hello\",\"apiVersion\":1}");
+    webSocket.sendTXT(client, "{\"type\":\"hello\",\"apiVersion\":" + String(kApiVersion) + "}");
     return;
   }
   if (type != WStype_TEXT) return;
@@ -524,16 +539,17 @@ void onWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t le
 void setup() {
   Serial.begin(115200);
   delay(250);
-  const uint64_t chipId = ESP.getEfuseMac();
-  char suffix[7];
-  snprintf(suffix, sizeof(suffix), "%06llX", static_cast<unsigned long long>(chipId & 0xFFFFFF));
-  deviceId = String(suffix);
+  // ESP.getEfuseMac() exposes the factory-programmed base MAC, unlike
+  // interface MACs that may depend on Wi-Fi mode. Hashing the complete 48-bit
+  // value produces a stable public identity without disclosing the raw MAC.
+  deviceId = lumaforge::deviceIdFromHardwareMac(ESP.getEfuseMac()).c_str();
+  const String shortId = deviceId.substring(3, 9);
   preferences.begin("lumaforge", false);
   LittleFS.begin(true);
   configureHardwareOutputsFromStorage();
-  deviceName = preferences.getString("name", "LumaForge " + deviceId);
-  hostname = sanitizeHostname(deviceName);
-  apSsid = "LumaForge-" + deviceId;
+  deviceName = preferences.getString("name", "LumaForge " + shortId);
+  hostname = "lumaforge-" + shortId;
+  apSsid = "LumaForge-" + shortId;
   registerRoutes();
   if (!connectStation(kConnectTimeoutMs)) startAccessPoint();
   server.begin();

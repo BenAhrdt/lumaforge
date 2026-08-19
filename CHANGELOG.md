@@ -3,6 +3,18 @@
 Alle wichtigen Änderungen an LumaForge werden in dieser Datei dokumentiert.
 Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.2.0-alpha.1] – 2026-08-19
+
+### Hinzugefügt
+
+- Stabile, hardwaregebundene Geräte-ID aus der vollständigen ESP32-eFuse-Basis-MAC.
+- Öffentliche Gerätekennung als gekürzter SHA-256-Hash, ohne die rohe MAC-Adresse offenzulegen.
+- Dedizierte LumaForge-Erkennung über `_lumaforge._tcp.local` zusätzlich zum HTTP-mDNS-Service.
+- mDNS-TXT-Metadaten für ID, Gerätename, API, Firmware, Modell, Hersteller, Produkt und Protokoll.
+- Explizite, von der Firmware-Version unabhängige API-Versionierung.
+- Read-only-Endpunkt `GET /api/v1/info` mit Identität, Netzwerkstatus und realen Gerätefähigkeiten.
+- Discovery-Grundlage für zukünftige Home-Assistant-Integrationen und ioBroker-Adapter.
+
 ## [0.1.0-alpha.1] – 2026-08-14
 
 Erste öffentliche Alpha-Version.
@@ -27,4 +39,5 @@ Erste öffentliche Alpha-Version.
 - Dies ist eine frühe Alpha-Version. Projektformate und Bedienung können sich noch ändern.
 - Vor dem OTA-Update muss die Firmware zum verwendeten ESP32-Board passen.
 
+[0.2.0-alpha.1]: https://github.com/BenAhrdt/lumaforge/compare/v0.1.0-alpha.1...v0.2.0-alpha.1
 [0.1.0-alpha.1]: https://github.com/BenAhrdt/lumaforge/releases/tag/v0.1.0-alpha.1
