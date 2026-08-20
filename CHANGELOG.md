@@ -3,6 +3,16 @@
 Alle wichtigen Änderungen an LumaForge werden in dieser Datei dokumentiert.
 Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.2.0-alpha.5] – 2026-08-20
+
+### Behoben
+
+- Das sekündliche REST-Statuspolling der Weboberfläche wurde entfernt; bei aktiver WebSocket-Verbindung kommen Statuswerte ausschließlich über `system.status` im Fünf-Sekunden-Takt.
+- LittleFS-Belegungswerte werden gecacht, sodass Statusabfragen keine wiederholten, teuren Dateisystemscans mehr auslösen.
+- Die Firmware-Kapazität wird aus der tatsächlich laufenden ESP32-App-Partition ermittelt und nicht mehr fälschlich aus Sketchgröße und OTA-Freiraum addiert.
+- Hochfrequente LED-Frame-Ereignisse werden nur noch an ausdrücklich angemeldete Editor-Clients gesendet. Home-Assistant-Verbindungen erhalten weiterhin Status- und Automationsereignisse ohne Pixel-Datenlast.
+- REST-Fallback-Abfragen der Weboberfläche erfolgen bei getrennter WebSocket-Verbindung nur noch alle 30 Sekunden.
+
 ## [0.2.0-alpha.4] – 2026-08-20
 
 ### Hinzugefügt
@@ -78,6 +88,7 @@ Erste öffentliche Alpha-Version.
 - Dies ist eine frühe Alpha-Version. Projektformate und Bedienung können sich noch ändern.
 - Vor dem OTA-Update muss die Firmware zum verwendeten ESP32-Board passen.
 
+[0.2.0-alpha.5]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.4...v0.2.0-alpha.5
 [0.2.0-alpha.4]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.3...v0.2.0-alpha.4
 [0.2.0-alpha.3]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.2...v0.2.0-alpha.3
 [0.2.0-alpha.2]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.1...v0.2.0-alpha.2

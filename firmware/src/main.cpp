@@ -13,6 +13,7 @@
 #include <ArduinoJson.h>
 #include <Adafruit_NeoPixel.h>
 #include <esp_netif.h>
+#include <esp_ota_ops.h>
 #include <memory>
 #include <mbedtls/sha256.h>
 #include "generated_web.hpp"
@@ -25,7 +26,7 @@ constexpr uint32_t kReconnectIntervalMs = 30000;
 constexpr char kApPassword[] = "lumaforge";
 constexpr char kProduct[] = "LumaForge";
 constexpr char kModel[] = "esp32";
-constexpr char kFirmwareVersion[] = "0.2.0-alpha.4";
+constexpr char kFirmwareVersion[] = "0.2.0-alpha.5";
 constexpr uint8_t kApiVersion = 1;
 constexpr char kUpdateManifestUrl[] = "https://raw.githubusercontent.com/BenAhrdt/lumaforge/main/update-manifest.json";
 constexpr char kGithubRootCa[] = R"CERT(-----BEGIN CERTIFICATE-----
@@ -92,6 +93,9 @@ float automationAdvanceSeconds = 0.0f;
 float cpuLoadPercent = 0.0f;
 uint64_t cpuBusyMicros = 0;
 uint32_t cpuWindowStarted = 0;
+size_t cachedFilesystemUsedBytes = 0;
+size_t cachedFilesystemTotalBytes = 0;
+bool frameSubscribers[WEBSOCKETS_SERVER_CLIENT_MAX] = {};
 String jsonEscape(const String& value);
 
 constexpr char kDefaultLayout[] = "{\"strips\":[]}";
@@ -100,7 +104,9 @@ constexpr char kDefaultList[] = "[]";
 String systemStatusJson(const char* type = nullptr) {
   const bool online = WiFi.status() == WL_CONNECTED;
   const size_t firmwareUsed = ESP.getSketchSize();
-  const size_t firmwareFree = ESP.getFreeSketchSpace();
+  const esp_partition_t* runningPartition = esp_ota_get_running_partition();
+  const size_t firmwareCapacity = runningPartition ? runningPartition->size : 0;
+  const size_t firmwareFree = firmwareCapacity > firmwareUsed ? firmwareCapacity - firmwareUsed : 0;
   JsonDocument status;
   if (type) status["type"] = type;
   status["wifi"] = online ? "connected" : "disconnected";
@@ -114,9 +120,9 @@ String systemStatusJson(const char* type = nullptr) {
   status["flashChipSizeBytes"] = ESP.getFlashChipSize();
   status["firmwareUsedBytes"] = firmwareUsed;
   status["firmwareFreeBytes"] = firmwareFree;
-  status["firmwareCapacityBytes"] = firmwareUsed + firmwareFree;
-  status["filesystemUsedBytes"] = LittleFS.usedBytes();
-  status["filesystemTotalBytes"] = LittleFS.totalBytes();
+  status["firmwareCapacityBytes"] = firmwareCapacity;
+  status["filesystemUsedBytes"] = cachedFilesystemUsedBytes;
+  status["filesystemTotalBytes"] = cachedFilesystemTotalBytes;
   String response;
   serializeJson(status, response);
   return response;
@@ -139,7 +145,9 @@ bool writeProjectFile(const char* key, const String& value) {
   if (!file || file.print(value) != value.length()) return false;
   file.close();
   LittleFS.remove(path);
-  return LittleFS.rename(temporary, path);
+  const bool renamed = LittleFS.rename(temporary, path);
+  if (renamed) cachedFilesystemUsedBytes = LittleFS.usedBytes();
+  return renamed;
 }
 
 String deviceJson() {
@@ -424,8 +432,13 @@ void broadcastCurrentFrame() {
   const double seconds = static_cast<double>(millis() - animationEpoch) / 1000.0;
   const std::vector<lumaforge::Color>& frame = renderer.render(runtimeScene, seconds);
   writeHardwareFrame(frame);
+  if (std::none_of(std::begin(frameSubscribers), std::end(frameSubscribers), [](bool subscribed) { return subscribed; })) return;
   const std::string message = "{\"type\":\"frame\",\"pixels\":" + lumaforge::colorJson(frame) + "}";
-  webSocket.broadcastTXT(reinterpret_cast<const uint8_t*>(message.data()), message.size());
+  for (uint8_t client = 0; client < WEBSOCKETS_SERVER_CLIENT_MAX; ++client) {
+    if (frameSubscribers[client]) {
+      webSocket.sendTXT(client, reinterpret_cast<const uint8_t*>(message.data()), message.size());
+    }
+  }
 }
 
 void updatePreview(JsonVariantConst message) {
@@ -713,7 +726,12 @@ void registerRoutes() {
 }
 
 void onWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t length) {
+  if (type == WStype_DISCONNECTED) {
+    if (client < WEBSOCKETS_SERVER_CLIENT_MAX) frameSubscribers[client] = false;
+    return;
+  }
   if (type == WStype_CONNECTED) {
+    if (client < WEBSOCKETS_SERVER_CLIENT_MAX) frameSubscribers[client] = false;
     webSocket.sendTXT(client, "{\"type\":\"hello\",\"apiVersion\":" + String(kApiVersion) + "}");
     String systemStatus = systemStatusJson("system.status");
     webSocket.sendTXT(client, systemStatus);
@@ -744,7 +762,11 @@ void onWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t le
   }
   try {
     const String typeName = message["type"] | "";
-    if (typeName == "scene.play") {
+    if (typeName == "frame.subscribe") {
+      if (client < WEBSOCKETS_SERVER_CLIENT_MAX) frameSubscribers[client] = true;
+    } else if (typeName == "frame.unsubscribe") {
+      if (client < WEBSOCKETS_SERVER_CLIENT_MAX) frameSubscribers[client] = false;
+    } else if (typeName == "scene.play") {
       activeAutomationId = "";
       activeAutomationSceneId = "";
       if (!loadSceneForPlayback(String(message["sceneId"] | ""))) {
@@ -801,6 +823,8 @@ void setup() {
   const String shortId = deviceId.substring(3, 9);
   preferences.begin("lumaforge", false);
   LittleFS.begin(true);
+  cachedFilesystemUsedBytes = LittleFS.usedBytes();
+  cachedFilesystemTotalBytes = LittleFS.totalBytes();
   configureHardwareOutputsFromStorage();
   deviceName = preferences.getString("name", "LumaForge " + shortId);
   hostname = "lumaforge-" + shortId;
