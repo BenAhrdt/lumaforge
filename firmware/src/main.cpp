@@ -23,10 +23,11 @@
 namespace {
 constexpr uint32_t kConnectTimeoutMs = 15000;
 constexpr uint32_t kReconnectIntervalMs = 30000;
+constexpr uint32_t kLoopYieldMs = 5;
 constexpr char kApPassword[] = "lumaforge";
 constexpr char kProduct[] = "LumaForge";
 constexpr char kModel[] = "esp32";
-constexpr char kFirmwareVersion[] = "0.2.0-alpha.5";
+constexpr char kFirmwareVersion[] = "0.2.0-alpha.6";
 constexpr uint8_t kApiVersion = 1;
 constexpr char kUpdateManifestUrl[] = "https://raw.githubusercontent.com/BenAhrdt/lumaforge/main/update-manifest.json";
 constexpr char kGithubRootCa[] = R"CERT(-----BEGIN CERTIFICATE-----
@@ -78,11 +79,13 @@ struct HardwareOutput { uint8_t gpio; String colorOrder; std::vector<size_t> log
 std::vector<HardwareOutput> hardwareOutputs;
 uint32_t animationEpoch = 0;
 uint32_t lastFrameAt = 0;
+uint32_t lastPreviewFrameAt = 0;
 uint32_t lastSystemStatusAt = 0;
 uint32_t lastUpdateCheckAt = 0;
 String latestVersion, latestFirmwareUrl, latestSha256, latestReleaseUrl;
 size_t latestFirmwareSize = 0;
 bool updateBusy = false;
+bool updateInstallRequested = false;
 bool playbackActive = false;
 String activeAutomationId;
 String activeAutomationSceneId;
@@ -417,14 +420,15 @@ bool checkForUpdate() {
 }
 
 bool installUpdate() {
-  if(updateBusy||!latestVersion.length()||latestVersion==kFirmwareVersion)return false;updateBusy=true;publishUpdateStatus("downloading",0);LittleFS.remove("/firmware-update.bin");
+  if(updateBusy||!latestVersion.length()||latestVersion==kFirmwareVersion)return false;updateBusy=true;publishUpdateStatus("downloading",0);webSocket.loop();LittleFS.remove("/firmware-update.bin");cachedFilesystemUsedBytes=LittleFS.usedBytes();
+  if(latestFirmwareSize==0||latestFirmwareSize>cachedFilesystemTotalBytes-cachedFilesystemUsedBytes){updateBusy=false;publishUpdateStatus("failed",-1,"filesystem_full");return false;}
   WiFiClientSecure client;client.setInsecure();HTTPClient http;http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);http.setTimeout(20000);
   if(!http.begin(client,latestFirmwareUrl)||http.GET()!=HTTP_CODE_OK){http.end();updateBusy=false;publishUpdateStatus("failed",-1,"download_failed");return false;}
-  File file=LittleFS.open("/firmware-update.bin","w");WiFiClient* stream=http.getStreamPtr();uint8_t buffer[2048];size_t received=0;mbedtls_sha256_context hash;mbedtls_sha256_init(&hash);mbedtls_sha256_starts_ret(&hash,0);
-  while(http.connected()&&received<latestFirmwareSize){const size_t count=stream->readBytes(buffer,std::min(sizeof(buffer),latestFirmwareSize-received));if(!count)break;file.write(buffer,count);mbedtls_sha256_update_ret(&hash,buffer,count);received+=count;publishUpdateStatus("downloading",latestFirmwareSize?received*100/latestFirmwareSize:0);}
+  File file=LittleFS.open("/firmware-update.bin","w");if(!file){http.end();updateBusy=false;publishUpdateStatus("failed",-1,"storage_open_failed");return false;}WiFiClient* stream=http.getStreamPtr();uint8_t buffer[2048];size_t received=0;int lastProgress=0;uint32_t lastDataAt=millis();mbedtls_sha256_context hash;mbedtls_sha256_init(&hash);mbedtls_sha256_starts_ret(&hash,0);
+  while(received<latestFirmwareSize){const size_t available=stream->available();if(available){const size_t wanted=std::min({sizeof(buffer),available,latestFirmwareSize-received});const size_t count=stream->readBytes(buffer,wanted);if(!count||file.write(buffer,count)!=count)break;mbedtls_sha256_update_ret(&hash,buffer,count);received+=count;lastDataAt=millis();const int progress=received*100/latestFirmwareSize;if(progress>lastProgress){lastProgress=progress;publishUpdateStatus("downloading",progress);}}else if(!http.connected()||millis()-lastDataAt>20000)break;webSocket.loop();delay(1);}
   file.close();http.end();uint8_t digest[32];mbedtls_sha256_finish_ret(&hash,digest);mbedtls_sha256_free(&hash);String actual;for(uint8_t value:digest){if(value<16)actual+='0';actual+=String(value,HEX);}
   if(received!=latestFirmwareSize||!actual.equalsIgnoreCase(latestSha256)){LittleFS.remove("/firmware-update.bin");updateBusy=false;publishUpdateStatus("failed",-1,"checksum_mismatch");return false;}
-  publishUpdateStatus("installing",100);file=LittleFS.open("/firmware-update.bin","r");const bool ok=Update.begin(received)&&Update.writeStream(file)==received&&Update.end(true);file.close();LittleFS.remove("/firmware-update.bin");
+  publishUpdateStatus("installing",100);webSocket.loop();delay(25);file=LittleFS.open("/firmware-update.bin","r");const bool ok=Update.begin(received)&&Update.writeStream(file)==received&&Update.end(true);file.close();LittleFS.remove("/firmware-update.bin");
   if(!ok){updateBusy=false;publishUpdateStatus("failed",-1,"install_failed");return false;}publishUpdateStatus("restarting",100);delay(500);ESP.restart();return true;
 }
 
@@ -432,7 +436,8 @@ void broadcastCurrentFrame() {
   const double seconds = static_cast<double>(millis() - animationEpoch) / 1000.0;
   const std::vector<lumaforge::Color>& frame = renderer.render(runtimeScene, seconds);
   writeHardwareFrame(frame);
-  if (std::none_of(std::begin(frameSubscribers), std::end(frameSubscribers), [](bool subscribed) { return subscribed; })) return;
+  if (millis() - lastPreviewFrameAt < 200 || std::none_of(std::begin(frameSubscribers), std::end(frameSubscribers), [](bool subscribed) { return subscribed; })) return;
+  lastPreviewFrameAt = millis();
   const std::string message = "{\"type\":\"frame\",\"pixels\":" + lumaforge::colorJson(frame) + "}";
   for (uint8_t client = 0; client < WEBSOCKETS_SERVER_CLIENT_MAX; ++client) {
     if (frameSubscribers[client]) {
@@ -790,10 +795,11 @@ void onWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t le
     } else if (typeName == "update.check") {
       if(!checkForUpdate()) return;
     } else if (typeName == "update.install") {
-      if(String(message["version"]|"")!=latestVersion||!installUpdate()) {
+      if(updateBusy||String(message["version"]|"")!=latestVersion||latestVersion==kFirmwareVersion) {
         webSocket.sendTXT(client, "{\"type\":\"error\",\"message\":\"update unavailable\"}");
         return;
       }
+      updateInstallRequested = true;
     } else if (typeName == "preview.set") {
       updatePreview(message.as<JsonVariantConst>());
     } else if (typeName == "preview.cancel" || typeName == "preview.apply") {
@@ -851,6 +857,10 @@ void loop() {
     String systemStatus = systemStatusJson("system.status");
     webSocket.broadcastTXT(systemStatus);
   }
+  if (updateInstallRequested && !updateBusy) {
+    updateInstallRequested = false;
+    installUpdate();
+  }
   if (WiFi.status()==WL_CONNECTED && !updateBusy && millis()>15000 && (lastUpdateCheckAt==0 || millis()-lastUpdateCheckAt>=21600000UL)) {
     lastUpdateCheckAt=millis();checkForUpdate();
   }
@@ -866,5 +876,5 @@ void loop() {
     cpuBusyMicros = 0;
     cpuWindowStarted = millis();
   }
-  delay(2);
+  delay(kLoopYieldMs);
 }

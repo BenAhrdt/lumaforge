@@ -3,6 +3,17 @@
 Alle wichtigen Änderungen an LumaForge werden in dieser Datei dokumentiert.
 Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.2.0-alpha.6] – 2026-08-20
+
+### Behoben
+
+- Die Live-Vorschau wird unabhängig vom LED-Rendering auf höchstens 5 FPS begrenzt.
+- Die Hauptschleife gibt dem ESP32 zwischen Netzwerkdurchläufen mehr Leerlaufzeit, ohne die 20-FPS-LED-Ausgabe zu reduzieren.
+- Der Browser abonniert Pixel-Frames nur auf der sichtbaren Layoutseite; bei Hintergrundtabs, Einstellungen und Dialogen wird die Übertragung pausiert.
+- OTA-Downloads blockieren die WebSocket-Verarbeitung nicht mehr und melden den Fortschritt pro Prozent an Weboberfläche und Home Assistant.
+- OTA-Downloads besitzen einen 20-Sekunden-Leerlauf-Timeout und melden konkrete Speicher-, Download-, Prüfsummen- und Installationsfehler.
+- Updateinstallationen werden erst nach Bestätigung des WebSocket-Befehls gestartet, damit Integrationen den Auftrag zuverlässig quittiert bekommen.
+
 ## [0.2.0-alpha.5] – 2026-08-20
 
 ### Behoben
@@ -88,6 +99,7 @@ Erste öffentliche Alpha-Version.
 - Dies ist eine frühe Alpha-Version. Projektformate und Bedienung können sich noch ändern.
 - Vor dem OTA-Update muss die Firmware zum verwendeten ESP32-Board passen.
 
+[0.2.0-alpha.6]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.5...v0.2.0-alpha.6
 [0.2.0-alpha.5]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.4...v0.2.0-alpha.5
 [0.2.0-alpha.4]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.3...v0.2.0-alpha.4
 [0.2.0-alpha.3]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.2...v0.2.0-alpha.3

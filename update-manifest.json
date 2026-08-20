@@ -1,8 +1,8 @@
 {
   "channel": "alpha",
-  "version": "0.2.0-alpha.5",
-  "firmwareUrl": "https://github.com/BenAhrdt/lumaforge/releases/download/v0.2.0-alpha.5/firmware.bin",
-  "releaseUrl": "https://github.com/BenAhrdt/lumaforge/releases/tag/v0.2.0-alpha.5",
-  "sizeBytes": 1166512,
-  "sha256": "2cfee2d23caba4df96f9e25b5d065f05721c8707b96dbe2132335ef986d682b7"
+  "version": "0.2.0-alpha.6",
+  "firmwareUrl": "https://github.com/BenAhrdt/lumaforge/releases/download/v0.2.0-alpha.6/firmware.bin",
+  "releaseUrl": "https://github.com/BenAhrdt/lumaforge/releases/tag/v0.2.0-alpha.6",
+  "sizeBytes": 1166944,
+  "sha256": "d68f2a3453effea417dc788a9f56829ac3a6f851460cbb9f694c0b8c8d896d25"
 }

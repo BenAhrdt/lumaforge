@@ -7,7 +7,7 @@ connection and every five seconds thereafter.
 ```json
 {
   "type": "system.status",
-  "version": "0.2.0-alpha.5",
+  "version": "0.2.0-alpha.6",
   "cpuPercent": 18.4,
   "memoryUsedBytes": 49320,
   "memoryTotalBytes": 327680,
@@ -35,7 +35,7 @@ Flash fields have distinct meanings:
 The simulator publishes the same schema but uses `null` for flash and
 filesystem fields because host storage is not equivalent to ESP32 flash.
 
-LED frame events are opt-in. An editor that needs the live LED visualization
+LED frame events are opt-in and limited to five events per second. An editor that needs the live LED visualization
 sends `{"type":"frame.subscribe"}` after connecting and can later send
 `{"type":"frame.unsubscribe"}`. Integrations such as Home Assistant should
 not subscribe unless they actually consume the high-frequency pixel frames.
