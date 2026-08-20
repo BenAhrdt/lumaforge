@@ -3,6 +3,14 @@
 Alle wichtigen Änderungen an LumaForge werden in dieser Datei dokumentiert.
 Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.2.0-alpha.3] – 2026-08-20
+
+### Behoben
+
+- Die ESP32-Firmware sendet beim Stoppen einer Automation nun immer ein vollständiges `automation.state`-Ereignis.
+- Der gestoppte Zustand enthält einheitlich `automationId: null`, `stepIndex: null`, `sceneId: null` und `elapsedSeconds: 0`, damit Integrationen den vorherigen Laufzustand zuverlässig zurücksetzen können.
+- Die initiale Statusmeldung nach einer WebSocket-Verbindung verwendet dasselbe vollständige Schema wie der Simulator.
+
 ## [0.2.0-alpha.2] – 2026-08-20
 
 ### Hinzugefügt
@@ -59,6 +67,7 @@ Erste öffentliche Alpha-Version.
 - Dies ist eine frühe Alpha-Version. Projektformate und Bedienung können sich noch ändern.
 - Vor dem OTA-Update muss die Firmware zum verwendeten ESP32-Board passen.
 
+[0.2.0-alpha.3]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.2...v0.2.0-alpha.3
 [0.2.0-alpha.2]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.1...v0.2.0-alpha.2
 [0.2.0-alpha.1]: https://github.com/BenAhrdt/lumaforge/compare/v0.1.0-alpha.1...v0.2.0-alpha.1
 [0.1.0-alpha.1]: https://github.com/BenAhrdt/lumaforge/releases/tag/v0.1.0-alpha.1

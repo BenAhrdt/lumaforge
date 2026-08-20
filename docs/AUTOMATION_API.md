@@ -51,7 +51,8 @@ connects and whenever an automation starts, advances, finishes, or stops:
 }
 ```
 
-Stopped state uses `automationId`, `stepIndex`, and `sceneId` values of `null`.
+Stopped state always includes `automationId`, `stepIndex`, and `sceneId` with
+`null` values and `elapsedSeconds` with the value `0` on both ESP32 and simulator.
 Starting a standalone scene cancels the current automation. `scene.stop` also
 stops an active automation. Daily time triggers are currently initiated by the
 open browser editor; sequence execution after it starts runs on the device.

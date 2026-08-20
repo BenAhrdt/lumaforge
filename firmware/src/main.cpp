@@ -22,7 +22,7 @@ constexpr uint32_t kReconnectIntervalMs = 30000;
 constexpr char kApPassword[] = "lumaforge";
 constexpr char kProduct[] = "LumaForge";
 constexpr char kModel[] = "esp32";
-constexpr char kFirmwareVersion[] = "0.2.0-alpha.2";
+constexpr char kFirmwareVersion[] = "0.2.0-alpha.3";
 constexpr uint8_t kApiVersion = 1;
 
 Preferences preferences;
@@ -232,6 +232,9 @@ void broadcastAutomationState() {
   if (activeAutomationId.length()) state["automationId"] = activeAutomationId;
   else state["automationId"] = nullptr;
   state["state"] = activeAutomationId.length() ? "running" : "stopped";
+  state["stepIndex"] = nullptr;
+  state["sceneId"] = nullptr;
+  state["elapsedSeconds"] = 0;
   if (activeAutomationId.length()) {
     state["stepIndex"] = activeAutomationStep;
     state["sceneId"] = activeAutomationSceneId;
@@ -626,9 +629,13 @@ void onWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t le
     if (activeAutomationId.length()) state["automationId"] = activeAutomationId;
     else state["automationId"] = nullptr;
     state["state"] = activeAutomationId.length() ? "running" : "stopped";
+    state["stepIndex"] = nullptr;
+    state["sceneId"] = nullptr;
+    state["elapsedSeconds"] = 0;
     if (activeAutomationId.length()) {
       state["stepIndex"] = activeAutomationStep;
       state["sceneId"] = activeAutomationSceneId;
+      state["elapsedSeconds"] = static_cast<float>(millis() - automationStepStartedAt) / 1000.0f;
     }
     String response;
     serializeJson(state, response);
