@@ -95,7 +95,10 @@ In normal Wi-Fi operation, `/` serves the embedded LumaForge editor. Its project
 resources are persisted in LittleFS, while Wi-Fi credentials remain in NVS. The
 network setup can then be opened from the editor settings or directly at `/setup`.
 The device additionally exposes `GET /api/v1/info`, `GET /api/v1/device` and
-`GET /api/v1/status`.
+`GET /api/v1/status`. Flash-, Firmware-/OTA- und LittleFS-Werte werden außerdem
+beim WebSocket-Verbindungsaufbau und danach alle fünf Sekunden als
+`system.status` veröffentlicht. Der vollständige Vertrag steht in
+[`docs/SYSTEM_STATUS_API.md`](docs/SYSTEM_STATUS_API.md).
 The editor REST resources, browser-based OTA and the portable C++ renderer are
 present. Scene and preview frames are calculated on the ESP32, streamed back to
 the browser over WebSocket and sent to the configured physical LED outputs.
@@ -151,7 +154,7 @@ No credentials, tokens, Wi-Fi password or raw MAC address are announced.
   "device_id": "lf-51bf60200d1e",
   "device_name": "Garage",
   "model": "esp32",
-  "firmware_version": "0.2.0-alpha.3",
+  "firmware_version": "0.2.0-alpha.4",
   "api_version": 1,
   "hostname": "lumaforge-51bf60",
   "network": {

@@ -5,6 +5,8 @@
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <Update.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 #include <WiFi.h>
@@ -12,6 +14,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <esp_netif.h>
 #include <memory>
+#include <mbedtls/sha256.h>
 #include "generated_web.hpp"
 #include "lumaforge/core.hpp"
 #include "lumaforge/device_identity.hpp"
@@ -22,8 +25,40 @@ constexpr uint32_t kReconnectIntervalMs = 30000;
 constexpr char kApPassword[] = "lumaforge";
 constexpr char kProduct[] = "LumaForge";
 constexpr char kModel[] = "esp32";
-constexpr char kFirmwareVersion[] = "0.2.0-alpha.3";
+constexpr char kFirmwareVersion[] = "0.2.0-alpha.4";
 constexpr uint8_t kApiVersion = 1;
+constexpr char kUpdateManifestUrl[] = "https://raw.githubusercontent.com/BenAhrdt/lumaforge/main/update-manifest.json";
+constexpr char kGithubRootCa[] = R"CERT(-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----)CERT";
 
 Preferences preferences;
 WebServer server(80);
@@ -42,6 +77,11 @@ struct HardwareOutput { uint8_t gpio; String colorOrder; std::vector<size_t> log
 std::vector<HardwareOutput> hardwareOutputs;
 uint32_t animationEpoch = 0;
 uint32_t lastFrameAt = 0;
+uint32_t lastSystemStatusAt = 0;
+uint32_t lastUpdateCheckAt = 0;
+String latestVersion, latestFirmwareUrl, latestSha256, latestReleaseUrl;
+size_t latestFirmwareSize = 0;
+bool updateBusy = false;
 bool playbackActive = false;
 String activeAutomationId;
 String activeAutomationSceneId;
@@ -56,6 +96,31 @@ String jsonEscape(const String& value);
 
 constexpr char kDefaultLayout[] = "{\"strips\":[]}";
 constexpr char kDefaultList[] = "[]";
+
+String systemStatusJson(const char* type = nullptr) {
+  const bool online = WiFi.status() == WL_CONNECTED;
+  const size_t firmwareUsed = ESP.getSketchSize();
+  const size_t firmwareFree = ESP.getFreeSketchSpace();
+  JsonDocument status;
+  if (type) status["type"] = type;
+  status["wifi"] = online ? "connected" : "disconnected";
+  status["ip"] = online ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
+  status["provisioning"] = accessPointActive;
+  status["rssi"] = online ? WiFi.RSSI() : 0;
+  status["version"] = kFirmwareVersion;
+  status["cpuPercent"] = cpuLoadPercent;
+  status["memoryUsedBytes"] = ESP.getHeapSize() - ESP.getFreeHeap();
+  status["memoryTotalBytes"] = ESP.getHeapSize();
+  status["flashChipSizeBytes"] = ESP.getFlashChipSize();
+  status["firmwareUsedBytes"] = firmwareUsed;
+  status["firmwareFreeBytes"] = firmwareFree;
+  status["firmwareCapacityBytes"] = firmwareUsed + firmwareFree;
+  status["filesystemUsedBytes"] = LittleFS.usedBytes();
+  status["filesystemTotalBytes"] = LittleFS.totalBytes();
+  String response;
+  serializeJson(status, response);
+  return response;
+}
 
 String readProjectFile(const char* key, const char* fallback) {
   const String path = String("/") + key + ".json";
@@ -325,6 +390,36 @@ void updateAutomation() {
   }
 }
 
+void publishUpdateStatus(const char* state, int progress = -1, const String& error = "") {
+  JsonDocument message;message["type"]="update.status";message["state"]=state;message["currentVersion"]=kFirmwareVersion;
+  if(latestVersion.length())message["latestVersion"]=latestVersion;else message["latestVersion"]=nullptr;
+  if(latestReleaseUrl.length())message["releaseUrl"]=latestReleaseUrl;else message["releaseUrl"]=nullptr;
+  message["sizeBytes"]=latestFirmwareSize;if(progress>=0)message["progress"]=progress;if(error.length())message["error"]=error;
+  String payload;serializeJson(message,payload);webSocket.broadcastTXT(payload);
+}
+
+bool checkForUpdate() {
+  if(updateBusy||WiFi.status()!=WL_CONNECTED)return false;updateBusy=true;publishUpdateStatus("checking");
+  WiFiClientSecure client;client.setCACert(kGithubRootCa);HTTPClient http;http.setTimeout(15000);
+  if(!http.begin(client,kUpdateManifestUrl)){updateBusy=false;publishUpdateStatus("failed",-1,"manifest_connection_failed");return false;}
+  const int code=http.GET();const String body=code==HTTP_CODE_OK?http.getString():String();http.end();JsonDocument manifest;
+  if(code!=HTTP_CODE_OK||deserializeJson(manifest,body)){updateBusy=false;publishUpdateStatus("failed",-1,"invalid_manifest");return false;}
+  latestVersion=String(manifest["version"]|"");latestFirmwareUrl=String(manifest["firmwareUrl"]|"");latestSha256=String(manifest["sha256"]|"");latestReleaseUrl=String(manifest["releaseUrl"]|"");latestFirmwareSize=manifest["sizeBytes"]|0;
+  updateBusy=false;const bool available=latestVersion.length()&&latestVersion!=kFirmwareVersion;publishUpdateStatus(available?"available":"up_to_date");return true;
+}
+
+bool installUpdate() {
+  if(updateBusy||!latestVersion.length()||latestVersion==kFirmwareVersion)return false;updateBusy=true;publishUpdateStatus("downloading",0);LittleFS.remove("/firmware-update.bin");
+  WiFiClientSecure client;client.setInsecure();HTTPClient http;http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);http.setTimeout(20000);
+  if(!http.begin(client,latestFirmwareUrl)||http.GET()!=HTTP_CODE_OK){http.end();updateBusy=false;publishUpdateStatus("failed",-1,"download_failed");return false;}
+  File file=LittleFS.open("/firmware-update.bin","w");WiFiClient* stream=http.getStreamPtr();uint8_t buffer[2048];size_t received=0;mbedtls_sha256_context hash;mbedtls_sha256_init(&hash);mbedtls_sha256_starts_ret(&hash,0);
+  while(http.connected()&&received<latestFirmwareSize){const size_t count=stream->readBytes(buffer,std::min(sizeof(buffer),latestFirmwareSize-received));if(!count)break;file.write(buffer,count);mbedtls_sha256_update_ret(&hash,buffer,count);received+=count;publishUpdateStatus("downloading",latestFirmwareSize?received*100/latestFirmwareSize:0);}
+  file.close();http.end();uint8_t digest[32];mbedtls_sha256_finish_ret(&hash,digest);mbedtls_sha256_free(&hash);String actual;for(uint8_t value:digest){if(value<16)actual+='0';actual+=String(value,HEX);}
+  if(received!=latestFirmwareSize||!actual.equalsIgnoreCase(latestSha256)){LittleFS.remove("/firmware-update.bin");updateBusy=false;publishUpdateStatus("failed",-1,"checksum_mismatch");return false;}
+  publishUpdateStatus("installing",100);file=LittleFS.open("/firmware-update.bin","r");const bool ok=Update.begin(received)&&Update.writeStream(file)==received&&Update.end(true);file.close();LittleFS.remove("/firmware-update.bin");
+  if(!ok){updateBusy=false;publishUpdateStatus("failed",-1,"install_failed");return false;}publishUpdateStatus("restarting",100);delay(500);ESP.restart();return true;
+}
+
 void broadcastCurrentFrame() {
   const double seconds = static_cast<double>(millis() - animationEpoch) / 1000.0;
   const std::vector<lumaforge::Color>& frame = renderer.render(runtimeScene, seconds);
@@ -564,17 +659,13 @@ void registerRoutes() {
     capabilities.add("zones");
     capabilities.add("automations");
     capabilities.add("automation_sequences");
+    capabilities.add("ota_update");
     String response;
     serializeJson(info, response);
     server.send(200, "application/json", response);
   });
   server.on("/api/v1/status", HTTP_GET, [] {
-    const bool online = WiFi.status() == WL_CONNECTED;
-    server.send(200, "application/json", "{\"wifi\":\"" + String(online ? "connected" : "disconnected") +
-      "\",\"ip\":\"" + String(online ? WiFi.localIP().toString() : WiFi.softAPIP().toString()) +
-      "\",\"provisioning\":" + String(accessPointActive ? "true" : "false") + ",\"rssi\":" + String(online ? WiFi.RSSI() : 0) +
-      ",\"version\":\"" + String(kFirmwareVersion) + "\",\"cpuPercent\":" + String(cpuLoadPercent, 1) + ",\"memoryUsedBytes\":" + String(ESP.getHeapSize() - ESP.getFreeHeap()) +
-      ",\"memoryTotalBytes\":" + String(ESP.getHeapSize()) + "}");
+    server.send(200, "application/json", systemStatusJson());
   });
   server.on("/api/config", HTTP_GET, [] { server.send(200, "application/json", deviceJson()); });
   server.on("/api/project", HTTP_GET, [] { server.send(200, "application/json", projectJson()); });
@@ -624,6 +715,9 @@ void registerRoutes() {
 void onWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t length) {
   if (type == WStype_CONNECTED) {
     webSocket.sendTXT(client, "{\"type\":\"hello\",\"apiVersion\":" + String(kApiVersion) + "}");
+    String systemStatus = systemStatusJson("system.status");
+    webSocket.sendTXT(client, systemStatus);
+    publishUpdateStatus(latestVersion.length()?(latestVersion==kFirmwareVersion?"up_to_date":"available"):"idle");
     JsonDocument state;
     state["type"] = "automation.state";
     if (activeAutomationId.length()) state["automationId"] = activeAutomationId;
@@ -669,6 +763,13 @@ void onWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t le
     } else if (typeName == "automation.next") {
       if (!nextAutomationStep()) {
         webSocket.sendTXT(client, "{\"type\":\"error\",\"message\":\"no active automation\"}");
+        return;
+      }
+    } else if (typeName == "update.check") {
+      if(!checkForUpdate()) return;
+    } else if (typeName == "update.install") {
+      if(String(message["version"]|"")!=latestVersion||!installUpdate()) {
+        webSocket.sendTXT(client, "{\"type\":\"error\",\"message\":\"update unavailable\"}");
         return;
       }
     } else if (typeName == "preview.set") {
@@ -720,6 +821,14 @@ void loop() {
   if (playbackActive && millis() - lastFrameAt >= 50) {
     lastFrameAt = millis();
     broadcastCurrentFrame();
+  }
+  if (millis() - lastSystemStatusAt >= 5000) {
+    lastSystemStatusAt = millis();
+    String systemStatus = systemStatusJson("system.status");
+    webSocket.broadcastTXT(systemStatus);
+  }
+  if (WiFi.status()==WL_CONNECTED && !updateBusy && millis()>15000 && (lastUpdateCheckAt==0 || millis()-lastUpdateCheckAt>=21600000UL)) {
+    lastUpdateCheckAt=millis();checkForUpdate();
   }
   if (accessPointActive) dns.processNextRequest();
   if (WiFi.status() != WL_CONNECTED && millis() - lastReconnectAttempt >= kReconnectIntervalMs) {

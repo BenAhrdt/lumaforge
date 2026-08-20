@@ -1,0 +1,8 @@
+{
+  "channel": "alpha",
+  "version": "0.2.0-alpha.4",
+  "firmwareUrl": "https://github.com/BenAhrdt/lumaforge/releases/download/v0.2.0-alpha.4/firmware.bin",
+  "releaseUrl": "https://github.com/BenAhrdt/lumaforge/releases/tag/v0.2.0-alpha.4",
+  "sizeBytes": 1166144,
+  "sha256": "3664bc7104a18f86c9928067a97578522bb3017fbb9aa63fbbb0baa9f2da0d31"
+}

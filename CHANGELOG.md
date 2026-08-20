@@ -3,6 +3,17 @@
 Alle wichtigen Änderungen an LumaForge werden in dieser Datei dokumentiert.
 Das Projekt verwendet [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.2.0-alpha.4] – 2026-08-20
+
+### Hinzugefügt
+
+- Flash-, Firmware-/OTA- und LittleFS-Belegung in REST-API, WebSocket und Weboberfläche.
+- Regelmäßiges WebSocket-Ereignis `system.status` für Integrationen.
+- Automatischer, TLS-gesicherter Updatecheck über ein GitHub-Manifest.
+- WebSocket-Befehle `update.check` und `update.install` sowie Fortschrittsereignisse `update.status`.
+- SHA-256-Prüfung des Firmwareimages vor der Installation und Neustart.
+- Bedienung für Updateprüfung und bestätigte Installation in den Geräteeinstellungen.
+
 ## [0.2.0-alpha.3] – 2026-08-20
 
 ### Behoben
@@ -67,6 +78,7 @@ Erste öffentliche Alpha-Version.
 - Dies ist eine frühe Alpha-Version. Projektformate und Bedienung können sich noch ändern.
 - Vor dem OTA-Update muss die Firmware zum verwendeten ESP32-Board passen.
 
+[0.2.0-alpha.4]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.3...v0.2.0-alpha.4
 [0.2.0-alpha.3]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.2...v0.2.0-alpha.3
 [0.2.0-alpha.2]: https://github.com/BenAhrdt/lumaforge/compare/v0.2.0-alpha.1...v0.2.0-alpha.2
 [0.2.0-alpha.1]: https://github.com/BenAhrdt/lumaforge/compare/v0.1.0-alpha.1...v0.2.0-alpha.1
