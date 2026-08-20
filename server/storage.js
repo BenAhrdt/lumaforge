@@ -74,7 +74,13 @@ function validateAutomations(automations, scenes) {
   for(const automation of automations){
     if(!automation.id||!String(automation.name||'').trim()||ids.has(automation.id))throw new Error('automation IDs and names must be unique and non-empty');
     ids.add(automation.id);
-    if(!sceneIds.has(automation.sceneId))throw new Error(`unknown scene: ${automation.sceneId}`);
+    const steps=automation.steps??(automation.sceneId?[{sceneId:automation.sceneId,advance:'manual'}]:null);
+    if(!Array.isArray(steps)||!steps.length)throw new Error('automation.steps must be a non-empty array');
+    for(const step of steps){
+      if(!sceneIds.has(step.sceneId))throw new Error(`unknown scene: ${step.sceneId}`);
+      if(!['scene_finished','after_delay','manual'].includes(step.advance))throw new Error('invalid automation step advance mode');
+      if(step.advance==='after_delay'&&(!Number.isFinite(step.durationSeconds)||step.durationSeconds<=0))throw new Error('automation step durationSeconds must be positive');
+    }
     if(!['manual','time'].includes(automation.trigger))throw new Error('invalid automation trigger');
     if(automation.trigger==='time'&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(automation.time||''))throw new Error('invalid automation time');
     if(typeof automation.enabled!=='boolean')throw new Error('automation.enabled must be boolean');

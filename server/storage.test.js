@@ -25,5 +25,7 @@ test('scene validates zone references and timing', () => {
 });
 test('automation validates trigger and scene reference',()=>{
   assert.doesNotThrow(()=>validateAutomations([{id:'a',name:'Evening',sceneId:'s',trigger:'time',time:'18:30',enabled:true}],[{id:'s'}]));
+  assert.doesNotThrow(()=>validateAutomations([{id:'a',name:'Sequence',steps:[{sceneId:'s',advance:'scene_finished'},{sceneId:'s',advance:'after_delay',durationSeconds:5},{sceneId:'s',advance:'manual'}],trigger:'manual',enabled:true}],[{id:'s'}]));
   assert.throws(()=>validateAutomations([{id:'a',name:'Bad',sceneId:'missing',trigger:'manual',enabled:true}],[]),/unknown scene/);
+  assert.throws(()=>validateAutomations([{id:'a',name:'Bad delay',steps:[{sceneId:'s',advance:'after_delay',durationSeconds:0}],trigger:'manual',enabled:true}],[{id:'s'}]),/positive/);
 });

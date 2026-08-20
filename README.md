@@ -151,7 +151,7 @@ No credentials, tokens, Wi-Fi password or raw MAC address are announced.
   "device_id": "lf-51bf60200d1e",
   "device_name": "Garage",
   "model": "esp32",
-  "firmware_version": "0.2.0-alpha.1",
+  "firmware_version": "0.2.0-alpha.2",
   "api_version": 1,
   "hostname": "lumaforge-51bf60",
   "network": {

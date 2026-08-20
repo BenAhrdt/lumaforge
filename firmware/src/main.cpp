@@ -22,7 +22,7 @@ constexpr uint32_t kReconnectIntervalMs = 30000;
 constexpr char kApPassword[] = "lumaforge";
 constexpr char kProduct[] = "LumaForge";
 constexpr char kModel[] = "esp32";
-constexpr char kFirmwareVersion[] = "0.2.0-alpha.1";
+constexpr char kFirmwareVersion[] = "0.2.0-alpha.2";
 constexpr uint8_t kApiVersion = 1;
 
 Preferences preferences;
@@ -43,6 +43,12 @@ std::vector<HardwareOutput> hardwareOutputs;
 uint32_t animationEpoch = 0;
 uint32_t lastFrameAt = 0;
 bool playbackActive = false;
+String activeAutomationId;
+String activeAutomationSceneId;
+size_t activeAutomationStep = 0;
+uint32_t automationStepStartedAt = 0;
+String automationAdvanceMode;
+float automationAdvanceSeconds = 0.0f;
 float cpuLoadPercent = 0.0f;
 uint64_t cpuBusyMicros = 0;
 uint32_t cpuWindowStarted = 0;
@@ -218,6 +224,102 @@ void stopPlayback() {
   playbackActive = false;
   animationEpoch = millis();
   clearHardwareOutputs();
+}
+
+void broadcastAutomationState() {
+  JsonDocument state;
+  state["type"] = "automation.state";
+  if (activeAutomationId.length()) state["automationId"] = activeAutomationId;
+  else state["automationId"] = nullptr;
+  state["state"] = activeAutomationId.length() ? "running" : "stopped";
+  if (activeAutomationId.length()) {
+    state["stepIndex"] = activeAutomationStep;
+    state["sceneId"] = activeAutomationSceneId;
+    state["elapsedSeconds"] = static_cast<float>(millis() - automationStepStartedAt) / 1000.0f;
+  }
+  String response;
+  serializeJson(state, response);
+  webSocket.broadcastTXT(response);
+}
+
+bool startAutomationStep() {
+  JsonDocument automations;
+  JsonDocument scenes;
+  if (deserializeJson(automations, readProjectFile("automations", kDefaultList)) ||
+      deserializeJson(scenes, readProjectFile("scenes", kDefaultList))) return false;
+  for (JsonVariantConst automation : automations.as<JsonArrayConst>()) {
+    if (String(automation["id"] | "") != activeAutomationId) continue;
+    JsonArrayConst steps = automation["steps"].as<JsonArrayConst>();
+    String sceneId;
+    JsonVariantConst step;
+    if (steps && activeAutomationStep < steps.size()) {
+      step = steps[activeAutomationStep];
+      sceneId = String(step["sceneId"] | "");
+      automationAdvanceMode = String(step["advance"] | "manual");
+      automationAdvanceSeconds = step["durationSeconds"] | 0.0f;
+    } else if (!steps && activeAutomationStep == 0) {
+      sceneId = String(automation["sceneId"] | "");
+      automationAdvanceMode = "manual";
+      automationAdvanceSeconds = 0.0f;
+    } else {
+      activeAutomationId = "";
+      activeAutomationSceneId = "";
+      stopPlayback();
+      broadcastAutomationState();
+      return true;
+    }
+    if (!loadSceneForPlayback(sceneId)) return false;
+    activeAutomationSceneId = sceneId;
+    if (automationAdvanceMode == "scene_finished") {
+      float duration = 0.0f;
+      bool endless = false;
+      for (JsonVariantConst scene : scenes.as<JsonArrayConst>()) {
+        if (String(scene["id"] | "") != sceneId) continue;
+        endless = scene["loop"] | false;
+        for (JsonVariantConst animation : scene["animations"].as<JsonArrayConst>()) {
+          if (animation["loop"] | false) endless = true;
+          duration = std::max(duration, (animation["start"] | 0.0f) + (animation["duration"] | 0.0f));
+        }
+      }
+      automationAdvanceSeconds = endless ? -1.0f : duration;
+    }
+    automationStepStartedAt = millis();
+    broadcastAutomationState();
+    return true;
+  }
+  return false;
+}
+
+bool startAutomation(const String& automationId) {
+  activeAutomationId = automationId;
+  activeAutomationStep = 0;
+  if (startAutomationStep()) return true;
+  activeAutomationId = "";
+  activeAutomationSceneId = "";
+  return false;
+}
+
+bool nextAutomationStep() {
+  if (!activeAutomationId.length()) return false;
+  ++activeAutomationStep;
+  return startAutomationStep();
+}
+
+void stopAutomation() {
+  activeAutomationId = "";
+  activeAutomationSceneId = "";
+  activeAutomationStep = 0;
+  stopPlayback();
+  broadcastAutomationState();
+}
+
+void updateAutomation() {
+  if (!activeAutomationId.length()) return;
+  const float elapsed = static_cast<float>(millis() - automationStepStartedAt) / 1000.0f;
+  if ((automationAdvanceMode == "after_delay" && elapsed >= automationAdvanceSeconds) ||
+      (automationAdvanceMode == "scene_finished" && automationAdvanceSeconds >= 0.0f && elapsed >= automationAdvanceSeconds)) {
+    nextAutomationStep();
+  }
 }
 
 void broadcastCurrentFrame() {
@@ -457,6 +559,8 @@ void registerRoutes() {
     capabilities.add("led_output");
     capabilities.add("scenes");
     capabilities.add("zones");
+    capabilities.add("automations");
+    capabilities.add("automation_sequences");
     String response;
     serializeJson(info, response);
     server.send(200, "application/json", response);
@@ -517,6 +621,18 @@ void registerRoutes() {
 void onWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t length) {
   if (type == WStype_CONNECTED) {
     webSocket.sendTXT(client, "{\"type\":\"hello\",\"apiVersion\":" + String(kApiVersion) + "}");
+    JsonDocument state;
+    state["type"] = "automation.state";
+    if (activeAutomationId.length()) state["automationId"] = activeAutomationId;
+    else state["automationId"] = nullptr;
+    state["state"] = activeAutomationId.length() ? "running" : "stopped";
+    if (activeAutomationId.length()) {
+      state["stepIndex"] = activeAutomationStep;
+      state["sceneId"] = activeAutomationSceneId;
+    }
+    String response;
+    serializeJson(state, response);
+    webSocket.sendTXT(client, response);
     return;
   }
   if (type != WStype_TEXT) return;
@@ -528,12 +644,26 @@ void onWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t le
   try {
     const String typeName = message["type"] | "";
     if (typeName == "scene.play") {
+      activeAutomationId = "";
+      activeAutomationSceneId = "";
       if (!loadSceneForPlayback(String(message["sceneId"] | ""))) {
         webSocket.sendTXT(client, "{\"type\":\"error\",\"message\":\"unknown scene\"}");
         return;
       }
     } else if (typeName == "scene.stop") {
-      stopPlayback();
+      stopAutomation();
+    } else if (typeName == "automation.start") {
+      if (!startAutomation(String(message["automationId"] | ""))) {
+        webSocket.sendTXT(client, "{\"type\":\"error\",\"message\":\"unknown automation\"}");
+        return;
+      }
+    } else if (typeName == "automation.stop") {
+      stopAutomation();
+    } else if (typeName == "automation.next") {
+      if (!nextAutomationStep()) {
+        webSocket.sendTXT(client, "{\"type\":\"error\",\"message\":\"no active automation\"}");
+        return;
+      }
     } else if (typeName == "preview.set") {
       updatePreview(message.as<JsonVariantConst>());
     } else if (typeName == "preview.cancel" || typeName == "preview.apply") {
@@ -579,6 +709,7 @@ void loop() {
   const uint32_t loopStarted = micros();
   server.handleClient();
   webSocket.loop();
+  updateAutomation();
   if (playbackActive && millis() - lastFrameAt >= 50) {
     lastFrameAt = millis();
     broadcastCurrentFrame();
